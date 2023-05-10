@@ -18,16 +18,22 @@ class MysqlDumpSplit
         line = f.readline
 
         if line.start_with?('-- Table structure for table')
-          puts "Skipped over #{@table_name}" if @skip_tables.include?(@table_name)
           new_table! line
 
-          puts "Starting table #{@table_name}"
+          action = skipping_table? ? 'Skipping' : 'Processing'
+          puts "#{action} table #{@table_name}"
         end
 
-        out_file.write line unless @skip_tables.include?(@table_name)
+        out_file.write line unless skipping_table?
       end until f.eof?
     end
     close_out_file
+  end
+
+  private
+
+  def skipping_table?
+    @skip_tables.include?(@table_name)
   end
   
   def new_table! line
