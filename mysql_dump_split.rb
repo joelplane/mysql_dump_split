@@ -1,21 +1,39 @@
 #!/usr/bin/env ruby
 
 class MysqlDumpSplit
-  def initialize file_path
+  USAGE="mysql_dump_split.rb <mysql backup>.sql [<table to exclude> [...] ]"
+
+  def initialize file_path, skip_tables = []
     @file_path = file_path
+    @skip_tables = skip_tables
     @table_name = 'head'
     @out_file = nil
   end
   
   def run
+    puts "Will skip table names '#{@skip_tables.join("', '")}'"
+
     File.open(@file_path, 'r') do |f|
       begin
         line = f.readline
-        new_table! line if line.start_with?('-- Table structure for table')
-        out_file.write line
+
+        if line.start_with?('-- Table structure for table')
+          new_table! line
+
+          action = skipping_table? ? 'Skipping' : 'Processing'
+          puts "#{action} table #{@table_name}"
+        end
+
+        out_file.write line unless skipping_table?
       end until f.eof?
     end
     close_out_file
+  end
+
+  private
+
+  def skipping_table?
+    @skip_tables.include?(@table_name)
   end
   
   def new_table! line
@@ -37,5 +55,8 @@ class MysqlDumpSplit
   end
 end
 
-MysqlDumpSplit.new(ARGV[0]).run
+backup = ARGV.shift
+skip_tables = ARGV
+
+MysqlDumpSplit.new(backup, skip_tables).run
 
